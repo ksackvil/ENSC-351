@@ -94,36 +94,27 @@ void
 PeerX::
 crc16ns (uint16_t* crc16nsP, uint8_t* buf)
 {
+	 int checksum = 0;
 	 register int wcj;
 	 register uint8_t *cp;
 	 unsigned oldcrc=0;
 	 for (wcj=CHUNK_SZ,cp=buf; --wcj>=0; ) {
-		 //sendline(*cp);
+		//  sendline(*cp);
 
 		 /* note the octal number in the line below */
 		 oldcrc=updcrc((0377& *cp++), oldcrc);
 
-		 //checksum += *cp++;
+		 checksum += *cp++;
 	 }
-	 //if (Crcflg) {
+	 if (Crcflg) {
 		 oldcrc=updcrc(0,updcrc(0,oldcrc));
 		 /* at this point, the CRC16 is in oldcrc */
 
-		 /* This is where rbsb.c "wrote" the CRC16.  Note how the MSB
-		  * is sent before the LSB
-		  */
-		 //sendline((int)oldcrc>>8);
-		 //sendline((int)oldcrc);
-
-		 /* in our case, we want the bytes to be in the memory pointed to by crc16nsP
-		  * in the correct 'network byte order'
-		  */
-
 		 // ********* The next line needs to be changed ***********
-		 *crc16nsP = 0;
-	 //}
-	 //else
-		 //sendline(checksum);
+		 *crc16nsP = oldcrc;
+	 }
+	 else
+		 *crc16nsP = checksum;
 }
 
 PeerX::
