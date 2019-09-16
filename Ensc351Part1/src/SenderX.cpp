@@ -61,30 +61,55 @@ prepared or if the input file is empty (i.e. has 0 length).
 void SenderX::genBlk(blkT blkBuf)
 {
 	// ********* The next line needs to be changed ***********
-	if (-1 == (bytesRd = myRead(transferringFileD, &blkBuf[0], CHUNK_SZ )))
-		ErrorPrinter("myRead(transferringFileD, &blkBuf[0], CHUNK_SZ )", __FILE__, __LINE__, errno);
+	// Read from the transferringFileD, store read bytes into blkBuf with room for overhead: 
+	// SOH (1) + block number and its 1's comp (2) = 3
+	if (-1 == (bytesRd = myRead(transferringFileD, &blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH], CHUNK_SZ )))
+		ErrorPrinter("myRead(transferringFileD, &blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH], CHUNK_SZ )", __FILE__, __LINE__, errno);
+
 	// ********* and additional code must be written ***********
+	// add SOH byte to the block
+	blkBuf[0] = SOH;
+
+	// make sure block num is less than 255
+	while(blkNum > 255) {
+		blkNum = blkNum - 256;
+	}
+
+	// send block number to block
+	blkBuf[1] = blkNum;
+	
+	//generate the 1's complement of the block number and add it to block
+	blkBuf[2] = 255 - blkNum;
 
     // ********* The next couple lines need to be changed ***********
     uint16_t myCrc16ns;
-    this->crc16ns(&myCrc16ns, &blkBuf[0]);
+    this->crc16ns(&myCrc16ns, &blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH]);
+
+	// add crc to block
+	blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH+CHUNK_SZ] = (uint8_t)(myCrc16ns >> 8);
+	blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH+CHUNK_SZ+1] = (uint8_t)(myCrc16ns & 0xff);
 }
 
 void SenderX::sendFile()
 {
+	uint8_t senderCode = CAN;
+
 	transferringFileD = myOpen(fileName, O_RDWR, 0);
 	if(transferringFileD == -1) {
 		// ********* fill in some code here to write 2 CAN characters ***********
+		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
+			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
+			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
 		cout /* cerr */ << "Error opening input file named: " << fileName << endl;
 		result = "OpenError";
 	}
 	else {
 		cout << "Sender will send " << fileName << endl;
-        //blkNum = 0; // but first block sent will be block #1, not #0
+        blkNum = 0; // but first block sent will be block #1, not #0
 
 		// do the protocol, and simulate a receiver that positively acknowledges every
 		//	block that it receives.
-
 
 		// assume 'C' or NAK received from receiver to enable sending with CRC or checksum, respectively
 		genBlk(blkBuf); // prepare 1st block
@@ -92,11 +117,9 @@ void SenderX::sendFile()
 		{
 			blkNum ++; // 1st block about to be sent or previous block was ACK'd
 
-			// ********* Code to write a block: start *********** //
-			uint8_t send = SOH;
-			myWrite(mediumD, &send, sizeof(send));		// SOH byte
-			myWrite(mediumD, &blkBuf, sizeof(blkBuf));	// the chunk of data
-			// ********* Code to write a block: end *********** //
+			// ********* Code to write a block *********** //
+			if(-1 == myWrite(mediumD, &blkBuf, sizeof(blkBuf)))
+				ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
 
 			// assume sent block will be ACK'd
 			genBlk(blkBuf); // prepare next block
@@ -104,7 +127,15 @@ void SenderX::sendFile()
 		};
 
 		// finish up the protocol, assuming the receiver behaves normally
-		// ********* fill in some code here ***********
+		// ********* fill in some code here: start *********** //
+		senderCode = EOT;
+		// Send EOT which will be NAKed
+		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
+			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+		// Repeat EOT  
+		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
+			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+		// ********* fill in some code here: end *********** //
 
 		//(myClose(transferringFileD));
 		if (-1 == myClose(transferringFileD))
