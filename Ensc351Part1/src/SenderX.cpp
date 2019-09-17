@@ -1,22 +1,22 @@
 //============================================================================
 //
-//% Student Name 1: student1
-//% Student 1 #: 123456781
-//% Student 1 userid (email): stu1 (stu1@sfu.ca)
+//% Student Name 1: Kai Sackville-Hii
+//% Student 1 #: 301310336
+//% Student 1 userid (email): ksackvil (ksackvil@sfu.ca)
 //
-//% Student Name 2: student2
-//% Student 2 #: 123456782
-//% Student 2 userid (email): stu2 (stu2@sfu.ca)
+//% Student Name 2: Gurshaan Brar
+//% Student 2 #: 301308740
+//% Student 2 userid (email): gba23 (gba23@sfu.ca)
 //
 //% Below, edit to list any people who helped you with the code in this file,
 //%      or put 'None' if nobody helped (the two of) you.
 //
-// Helpers: _everybody helped us/me with the assignment (list names or put 'None')__
+// Helpers: None
 //
 // Also, list any resources beyond the course textbooks and the course pages on Piazza
 // that you used in making your submission.
 //
-// Resources:  ___________
+// Resources: 
 //
 //%% Instructions:
 //% * Put your name(s), student number(s), userid(s) in the above section.
@@ -66,6 +66,18 @@ void SenderX::genBlk(blkT blkBuf)
 	if (-1 == (bytesRd = myRead(transferringFileD, &blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH], CHUNK_SZ )))
 		ErrorPrinter("myRead(transferringFileD, &blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH], CHUNK_SZ )", __FILE__, __LINE__, errno);
 
+
+	if(bytesRd == 0) {
+		//do nothing
+		return;
+	}
+	else if(bytesRd < 128) {
+		// If the bytes read is less than 128 add buff
+		for(int i = 0; i < (128-bytesRd); i++) {
+			blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH+bytesRd+i] = CTRL_Z;
+		}
+	}
+
 	// ********* and additional code must be written ***********
 	// add SOH byte to the block
 	blkBuf[0] = SOH;
@@ -88,19 +100,16 @@ void SenderX::genBlk(blkT blkBuf)
 	// add crc to block
 	blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH+CHUNK_SZ] = (uint8_t)(myCrc16ns >> 8);
 	blkBuf[SOH_OH+BLK_NUM_AND_COMP_OH+CHUNK_SZ+1] = (uint8_t)(myCrc16ns & 0xff);
+
 }
 
 void SenderX::sendFile()
 {
-	uint8_t senderCode = CAN;
-
 	transferringFileD = myOpen(fileName, O_RDWR, 0);
 	if(transferringFileD == -1) {
 		// ********* fill in some code here to write 2 CAN characters ***********
-		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
-			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
-		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
-			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+	    sendByte(CAN);
+	    sendByte(CAN);
 		cout /* cerr */ << "Error opening input file named: " << fileName << endl;
 		result = "OpenError";
 	}
@@ -118,8 +127,16 @@ void SenderX::sendFile()
 			blkNum ++; // 1st block about to be sent or previous block was ACK'd
 
 			// ********* Code to write a block *********** //
-			if(-1 == myWrite(mediumD, &blkBuf, sizeof(blkBuf)))
-				ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+			if(Crcflg) {
+				for(int j = 0; j < BLK_SZ_CRC; j++){
+					sendByte(blkBuf[j]);
+				}
+			}
+			else {
+				for(int j = 0; j < BLK_SZ; j++){
+					sendByte(blkBuf[j]);
+				}
+			}
 
 			// assume sent block will be ACK'd
 			genBlk(blkBuf); // prepare next block
@@ -128,13 +145,10 @@ void SenderX::sendFile()
 
 		// finish up the protocol, assuming the receiver behaves normally
 		// ********* fill in some code here: start *********** //
-		senderCode = EOT;
 		// Send EOT which will be NAKed
-		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
-			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+	    sendByte(EOT);
 		// Repeat EOT  
-		if(-1 == myWrite(mediumD, &senderCode, sizeof(senderCode)))
-			ErrorPrinter("myWrite(mediumD, &blkBuf, sizeof(blkBuf)", __FILE__, __LINE__, errno);	
+	    sendByte(EOT);
 		// ********* fill in some code here: end *********** //
 
 		//(myClose(transferringFileD));

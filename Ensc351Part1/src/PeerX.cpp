@@ -1,17 +1,17 @@
 //============================================================================
 //
-//% Student Name 1: student1
-//% Student 1 #: 123456781
-//% Student 1 userid (email): stu1 (stu1@sfu.ca)
+//% Student Name 1: Kai Sackville-Hii
+//% Student 1 #: 301310336
+//% Student 1 userid (email): ksackvil (ksackvil@sfu.ca)
 //
-//% Student Name 2: student2
-//% Student 2 #: 123456782
-//% Student 2 userid (email): stu2 (stu2@sfu.ca)
+//% Student Name 2: Gurshaan Brar
+//% Student 2 #: 301308740
+//% Student 2 userid (email): gba23 (gba23@sfu.ca)
 //
 //% Below, edit to list any people who helped you with the code in this file,
 //%      or put 'None' if nobody helped (the two of) you.
 //
-// Helpers: _everybody helped us/me with the assignment (list names or put 'None')__
+// Helpers: None
 //
 // Also, list any resources beyond the course textbooks and the course pages on Piazza
 // that you used in making your submission.
@@ -102,9 +102,9 @@ crc16ns (uint16_t* crc16nsP, uint8_t* buf)
 		//  sendline(*cp);
 
 		 /* note the octal number in the line below */
-		 oldcrc=updcrc((0377& *cp++), oldcrc);
+		checksum += *cp;
+		oldcrc=updcrc((0377& *cp++), oldcrc);
 
-		 checksum += *cp++;
 	 }
 	 if (Crcflg) {
 		 oldcrc=updcrc(0,updcrc(0,oldcrc));
